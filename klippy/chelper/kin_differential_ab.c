@@ -36,16 +36,16 @@ static double
 diffab_stepper_l_calc_position(struct stepper_kinematics *sk, struct move *m
                              , double move_time)
 {
-    // TODO
-    return move_get_coord(m, move_time).a;
+    struct coord c = move_get_coord(m, move_time);
+    return c.a + c.b;
 }
 
 static double
 diffab_stepper_r_calc_position(struct stepper_kinematics *sk, struct move *m
                              , double move_time)
 {
-    // TODO
-    return move_get_coord(m, move_time).b;
+    struct coord c = move_get_coord(m, move_time);
+    return c.a - c.b;
 }
 
 struct stepper_kinematics * __visible

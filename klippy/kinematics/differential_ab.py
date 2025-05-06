@@ -11,10 +11,10 @@ class DifferentialABKinematics:
         # Setup axis rails
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
                       for n in 'xyzlr']
-        #for s in self.rails[1].get_steppers():
-        #    self.rails[0].get_endstops()[0][0].add_stepper(s)
-        #for s in self.rails[0].get_steppers():
-        #    self.rails[1].get_endstops()[0][0].add_stepper(s)
+        for s in self.rails[4].get_steppers():
+            self.rails[3].get_endstops()[0][0].add_stepper(s)
+        for s in self.rails[3].get_steppers():
+            self.rails[4].get_endstops()[0][0].add_stepper(s)
         self.rails[0].setup_itersolve('differential_ab_stepper_alloc', b'x')
         self.rails[1].setup_itersolve('differential_ab_stepper_alloc', b'y')
         self.rails[2].setup_itersolve('differential_ab_stepper_alloc', b'z')
@@ -44,8 +44,20 @@ class DifferentialABKinematics:
         return [s for rail in self.rails for s in rail.get_steppers()]
     def calc_position(self, stepper_positions):
         pos = [stepper_positions[rail.get_name()] for rail in self.rails]
+        return [pos[0], pos[1], pos[2], (pos[3] + pos[4]) / 2, (pos[3] - pos[4]) / 2, 0.0]
+    def calc_homing_position(self, stepper_positions):
+        pos = [None, None, None, None, None, None, None]
+        if stepper_positions[0] is not None:
+            pos[0] = stepper_positions[0]
+        if stepper_positions[1] is not None:
+            pos[1] = stepper_positions[1]
+        if stepper_positions[2] is not None:
+            pos[2] = stepper_positions[2]
+        if stepper_positions[3] is not None or stepper_positions[4] is not None:
+            # TODO
+            pos[3] = (stepper_positions[3] + stepper_positions[4]) / 2
+            pos[4] = (stepper_positions[3] - stepper_positions[4]) / 2
         return pos
-        #return [0.5 * (pos[0] + pos[1]), 0.5 * (pos[0] - pos[1]), pos[2]]
     def calc_move_distance(self, start_pos, end_pos):
         # For 6-axis version
         d_xyz = math.sqrt(sum([(e - s) ** 2 for (s, e) in zip(start_pos[:3], end_pos[:3])]))
@@ -66,20 +78,24 @@ class DifferentialABKinematics:
             if axis_name in clear_axes:
                 self.limits[axis] = (1.0, -1.0)
     def home(self, homing_state):
-        # TODO
         # Always home all axis other than extruder
         for axis, rail in enumerate(self.rails):
             # Determine movement
             position_min, position_max = rail.get_range()
             hi = rail.get_homing_info()
+            homepos_stepper = [None, None, None, None, None]
+            homepos_stepper[axis] = hi.position_endstop
             # xyzabce
             homepos = [None, None, None, None, None, None, None]
-            homepos[axis] = hi.position_endstop
-            forcepos = list(homepos)
+            homepos = self.calc_homing_position(homepos_stepper)
+            logging.info(f'homepos = {homepos}')
+            forcepos_stepper = list(homepos_stepper)
             if hi.positive_dir:
-                forcepos[axis] -= 1.5 * (hi.position_endstop - position_min)
+                forcepos_stepper[axis] -= 1.5 * (hi.position_endstop - position_min)
             else:
-                forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
+                forcepos_stepper[axis] += 1.5 * (position_max - hi.position_endstop)
+            forcepos = self.calc_homing_position(forcepos_stepper)
+            logging.info(f'forcepos = {forcepos}')
             # Perform homing
             homing_state.home_rails([rail], forcepos, homepos)
     def _check_endstops(self, move):
