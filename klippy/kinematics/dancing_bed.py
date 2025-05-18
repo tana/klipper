@@ -31,7 +31,13 @@ class DancingBedKinematics:
                                               above=0., maxval=max_velocity)
         self.max_z_accel = config.getfloat('max_z_accel', max_accel,
                                            above=0., maxval=max_accel)
-        self.limits = [(1.0, -1.0)] * 4
+        # C axis does not require homing
+        self.limits = [
+            (1.0, -1.0),
+            (1.0, -1.0),
+            (1.0, -1.0),
+            (ranges[3][0], ranges[3][1])
+        ]
         self.max_speed_x = max_velocity
         self.max_speed_y = max_velocity
         self.max_speed_z = self.max_z_velocity
@@ -44,7 +50,16 @@ class DancingBedKinematics:
 
     def calc_position(self, stepper_positions):
         rails = self.rails
-        return [stepper_positions[rail.get_name()] for rail in rails]
+        #return [stepper_positions[rail.get_name()] for rail in rails]
+        # TODO
+        return [
+            stepper_positions[rails[0].get_name()],
+            stepper_positions[rails[1].get_name()],
+            stepper_positions[rails[2].get_name()],
+            0,
+            0,
+            stepper_positions[rails[3].get_name()],
+        ]
 
     def update_limits(self, i, range):
         l, h = self.limits[i]
@@ -63,7 +78,7 @@ class DancingBedKinematics:
             self.limits[axis] = rail.get_range()
 
     def clear_homing_state(self, clear_axes):
-        for axis, axis_name in enumerate("xyzc"):
+        for axis, axis_name in enumerate("xyz"):
             if axis_name in clear_axes:
                 self.limits[axis] = (1.0, -1.0)
 
@@ -71,7 +86,7 @@ class DancingBedKinematics:
         # Determine movement
         position_min, position_max = rail.get_range()
         hi = rail.get_homing_info()
-        homepos = [None, None, None, None]
+        homepos = [None, None, None, None, None, None, None]
         homepos[axis] = hi.position_endstop
         forcepos = list(homepos)
         if hi.positive_dir:
@@ -84,7 +99,9 @@ class DancingBedKinematics:
     def home(self, homing_state):
         # Each axis is homed independently and in order
         for axis in homing_state.get_axes():
-            self.home_axis(homing_state, axis, self.rails[axis])
+            # Only XYZ needs homing
+            if axis < 3:
+                self.home_axis(homing_state, axis, self.rails[axis])
 
     def _check_endstops(self, move):
         end_pos = move.end_pos
