@@ -23,6 +23,7 @@ SOURCE_FILES = [
     'kin_deltesian.c', 'kin_polar.c', 'kin_rotary_delta.c', 'kin_winch.c',
     'kin_extruder.c', 'kin_shaper.c', 'kin_idex.c', 
     'kin_corexybc.c', 'kin_trunnion_bc.c',
+    'kin_dancing_bed.c',
 ]
 DEST_LIB = "c_helper.so"
 OTHER_FILES = [
@@ -183,6 +184,10 @@ defs_kin_corexybc = """
 						double adjust_a, double adjust_b, double adjust_c);
 """
 
+defs_kin_dancing_bed = """
+    struct stepper_kinematics *dancing_bed_stepper_alloc(char axis);
+"""
+
 defs_serialqueue = """
     #define MESSAGE_MAX 64
     struct pull_queue_message {
@@ -242,7 +247,8 @@ defs_all = [
     defs_kin_cartesian, defs_kin_corexy, defs_kin_corexz, defs_kin_delta,
     defs_kin_deltesian, defs_kin_polar, defs_kin_rotary_delta, defs_kin_winch,
     defs_kin_extruder, defs_kin_shaper, defs_kin_idex, 
-    defs_kin_trunnion_bc, defs_kin_corexybc, 
+    defs_kin_trunnion_bc, defs_kin_corexybc,
+    defs_kin_dancing_bed,
 ]
 
 # Update filenames to an absolute path
