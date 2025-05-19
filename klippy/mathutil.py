@@ -135,3 +135,26 @@ def matrix_sub(m1, m2):
 
 def matrix_mul(m1, s):
     return [m1[0]*s, m1[1]*s, m1[2]*s]
+
+
+######################################################################
+# Quaternions
+######################################################################
+
+def quat_mul(q1, q2):
+    return [
+        q1[0] * q2[0] - q1[1] * q2[1] - q1[2] * q2[2] - q1[3] * q2[3],
+        q1[0] * q2[1] + q1[1] * q2[0] + q1[2] * q2[3] - q1[3] * q2[2],
+        q1[0] * q2[2] - q1[1] * q2[3] + q1[2] * q2[0] + q1[3] * q2[1],
+        q1[0] * q2[3] + q1[1] * q2[2] - q1[2] * q2[1] + q1[3] * q2[0]
+    ]
+
+def quat_conj(q1):
+    return [q1[0], -q1[1], -q1[2], -q1[3]]
+
+def quat_apply(q1, m1):
+    return quat_mul(quat_mul(q1, [0.] + m1), quat_conj(q1))[1:]
+
+def quat_angle_axis(angle, axis):
+    axis = matrix_mul(axis, 1 / math.sqrt(matrix_magsq(axis)))
+    return [math.cos(angle / 2)] + matrix_mul(axis, math.sin(angle / 2))

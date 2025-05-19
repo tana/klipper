@@ -146,5 +146,15 @@ class DancingBedKinematics:
             d_abc = math.sqrt(sum([(e - s) ** 2 for (s, e) in zip(start_pos[3:6], end_pos[3:6])]))
             return d_abc
 
+    def get_calibration(self):
+        return DancingBedCalibration(self.tilt, self.pivot_pos_machine, self.rot_offset)
+
+# Parameters for DANCING_BED_CALIBRATE
+class DancingBedCalibration:
+    def __init__(self, tilt, pivot_pos_machine, rot_offset):
+        self.tilt = tilt
+        self.pivot_pos_machine = pivot_pos_machine
+        self.rot_offset = rot_offset
+
 def load_kinematics(toolhead, config):
     return DancingBedKinematics(toolhead, config)
