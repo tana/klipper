@@ -11,6 +11,12 @@ class DancingBedKinematics:
     def __init__(self, toolhead, config):
         self.printer = config.get_printer()
 
+        # Parameters
+        self.tilt = config.getfloat('tilt')
+        # TODO
+        self.pivot = [0., 0., 0.]
+        self.rot_offset = [0., 0., 0.]
+
         # Setup axis rails
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
                       for n in 'xyzc']
@@ -147,13 +153,13 @@ class DancingBedKinematics:
             return d_abc
 
     def get_calibration(self):
-        return DancingBedCalibration(self.tilt, self.pivot_pos_machine, self.rot_offset)
+        return DancingBedCalibration(self.tilt, self.pivot, self.rot_offset)
 
 # Parameters for DANCING_BED_CALIBRATE
 class DancingBedCalibration:
-    def __init__(self, tilt, pivot_pos_machine, rot_offset):
+    def __init__(self, tilt, pivot, rot_offset):
         self.tilt = tilt
-        self.pivot_pos_machine = pivot_pos_machine
+        self.pivot = pivot
         self.rot_offset = rot_offset
 
 def load_kinematics(toolhead, config):
