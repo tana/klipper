@@ -6,6 +6,7 @@
 import math
 import logging
 import stepper
+import chelper
 
 class DancingBedKinematics:
     def __init__(self, toolhead, config):
@@ -13,15 +14,19 @@ class DancingBedKinematics:
 
         # Parameters
         self.tilt = config.getfloat('tilt')
-        # TODO
         self.pivot = [0., 0., 0.]
-        self.rot_offset = [0., 0., 0.]
+        self.c_offset = 0.
 
         # Setup axis rails
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
                       for n in 'xyzc']
         for rail, axis in zip(self.rails, 'xyzc'):
-            rail.setup_itersolve('dancing_bed_stepper_alloc', axis.encode())
+            rail.setup_itersolve('dancing_bed_stepper_alloc',
+                axis.encode(),
+                self.tilt,
+                self.pivot[0], self.pivot[1], self.pivot[2],
+                self.c_offset,
+            )
 
         ranges = [r.get_range() for r in self.rails]
         self.axes_min = toolhead.Coord(x=ranges[0][0], y=ranges[1][0], z=ranges[2][0], c=ranges[3][0], a=0., b=0., e=0.)
@@ -51,21 +56,28 @@ class DancingBedKinematics:
         self.max_speed_b = 0.0
         self.max_speed_c = config.getfloat('max_angular_velocity')
 
+        self.set_calibration(self.get_calibration())
+
     def get_steppers(self):
         return [s for rail in self.rails for s in rail.get_steppers()]
 
     def calc_position(self, stepper_positions):
         rails = self.rails
-        #return [stepper_positions[rail.get_name()] for rail in rails]
-        # TODO
-        return [
-            stepper_positions[rails[0].get_name()],
-            stepper_positions[rails[1].get_name()],
-            stepper_positions[rails[2].get_name()],
-            0,
-            0,
-            stepper_positions[rails[3].get_name()],
-        ]
+        stepper_x = stepper_positions[rails[0].get_name()]
+        stepper_y = stepper_positions[rails[1].get_name()]
+        stepper_z = stepper_positions[rails[2].get_name()]
+        stepper_c = stepper_positions[rails[3].get_name()]
+        x0, y0, z0 = self.pivot
+        x = stepper_x - x0
+        y = stepper_y - y0
+        z = stepper_z - z0
+        # Tilt around X axis
+        tilt_y = math.cos(self.tilt) * y + math.sin(self.tilt) * z
+        tilt_z = -math.sin(self.tilt) * y + math.cos(self.tilt) * z
+        # Rotate around Z axis
+        rotated_x = math.cos(stepper_c) * x + math.sin(stepper_c) * tilt_y
+        rotated_y = -math.sin(stepper_c) * x + math.cos(stepper_c) * tilt_y
+        return [rotated_x, rotated_y, tilt_z, 0., 0., stepper_c + self.c_offset]
 
     def update_limits(self, i, range):
         l, h = self.limits[i]
@@ -103,11 +115,16 @@ class DancingBedKinematics:
         homing_state.home_rails([rail], forcepos, homepos)
 
     def home(self, homing_state):
+        # Clear calibration during homing
+        orig_cal = self.get_calibration()
+        self.set_calibration(DancingBedCalibration(0., [0., 0., 0.], 0.))
         # Each axis is homed independently and in order
         for axis in homing_state.get_axes():
             # Only XYZ needs homing
             if axis < 3:
                 self.home_axis(homing_state, axis, self.rails[axis])
+        # Restore calibration
+        self.set_calibration(orig_cal)
 
     def _check_endstops(self, move):
         end_pos = move.end_pos
@@ -153,14 +170,30 @@ class DancingBedKinematics:
             return d_abc
 
     def get_calibration(self):
-        return DancingBedCalibration(self.tilt, self.pivot, self.rot_offset)
+        return DancingBedCalibration(self.tilt, self.pivot, self.c_offset)
+
+    def set_calibration(self, cal):
+        self.tilt = cal.tilt
+        self.pivot = cal.pivot
+        self.c_offset = cal.c_offset
+
+        logging.info(f"Updating parameters to tilt={self.tilt}, pivot={self.pivot}, c_offset={self.c_offset}")
+
+        _, ffi_lib = chelper.get_ffi()
+        for s in self.get_steppers():
+            ffi_lib.dancing_bed_set_params(
+                s.get_stepper_kinematics(),
+                self.tilt,
+                self.pivot[0], self.pivot[1], self.pivot[2],
+                self.c_offset
+            )
 
 # Parameters for DANCING_BED_CALIBRATE
 class DancingBedCalibration:
-    def __init__(self, tilt, pivot, rot_offset):
+    def __init__(self, tilt, pivot, c_offset):
         self.tilt = tilt
         self.pivot = pivot
-        self.rot_offset = rot_offset
+        self.c_offset = c_offset
 
 def load_kinematics(toolhead, config):
     return DancingBedKinematics(toolhead, config)

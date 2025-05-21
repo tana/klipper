@@ -185,7 +185,16 @@ defs_kin_corexybc = """
 """
 
 defs_kin_dancing_bed = """
-    struct stepper_kinematics *dancing_bed_stepper_alloc(char axis);
+    struct stepper_kinematics *dancing_bed_stepper_alloc(
+        char axis,
+        double tilt, double x0, double y0, double z0, double c_offset
+    );
+    int dancing_bed_set_params(
+        struct stepper_kinematics *sk,
+        double tilt,
+        double x0, double y0, double z0,
+        double c_offset
+    );
 """
 
 defs_serialqueue = """

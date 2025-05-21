@@ -1,19 +1,15 @@
 import math, logging
 import mathutil
+import kinematics.dancing_bed as dancing_bed
 from . import probe
 
 def _deg_to_rad(deg):
     return deg * math.pi / 180
 
-def _bed_height_at(x, y, c, tilt, pivot, rot_offset):
-    rot_offset_quat_x = mathutil.quat_angle_axis(_deg_to_rad(rot_offset[0]), [1, 0, 0])
-    rot_offset_quat_y = mathutil.quat_angle_axis(_deg_to_rad(rot_offset[1]), [0, 1, 0])
-    rot_offset_quat_z = mathutil.quat_angle_axis(_deg_to_rad(rot_offset[2]), [0, 0, 1])
-    rot_offset_quat = mathutil.quat_mul(mathutil.quat_mul(rot_offset_quat_x,rot_offset_quat_y), rot_offset_quat_z)
-
-    c_quat = mathutil.quat_angle_axis(_deg_to_rad(c), [0, 0, 1])
+def _bed_height_at(x, y, c, tilt, pivot, c_offset):
+    c_quat = mathutil.quat_angle_axis(_deg_to_rad(c + c_offset), [0, 0, 1])
     tilt_quat = mathutil.quat_angle_axis(_deg_to_rad(tilt), [1, 0, 0])
-    rot = mathutil.quat_mul(rot_offset_quat, mathutil.quat_mul(c_quat, tilt_quat))
+    rot = mathutil.quat_mul(c_quat, tilt_quat)
 
     x0, y0, z0 = pivot
     nx, ny, nz = mathutil.quat_apply(rot, [0, 0, 1])
@@ -40,6 +36,9 @@ class DancingBedCalibrate:
         kin = toolhead.get_kinematics()
         kin_calib = kin.get_calibration()
 
+        # Disable calibration params during probing
+        kin.set_calibration(dancing_bed.DancingBedCalibration(0., [0., 0., 0.], 0.))
+
         probe_results = []
         for c in self.angles:
             for x, y in self.points:
@@ -61,7 +60,7 @@ class DancingBedCalibrate:
                 error = z - _bed_height_at(
                     x, y, c, kin_calib.tilt,
                     [params['x0'], params['y0'], params['z0']],
-                    [params['ra'], params['rb'], params['rc']],
+                    params['c_offset'],
                 )
                 error_sq_sum += error * error
             return error_sq_sum
@@ -69,11 +68,17 @@ class DancingBedCalibrate:
         # Optimize using coordinate descent
         opt_result = mathutil.background_coordinate_descent(
             self.printer,
-            ['x0', 'y0', 'z0', 'ra', 'rb', 'rc'],
-            {'x0': 0., 'y0': 0., 'z0': 0., 'ra': 0., 'rb': 0., 'rc': 0.},
+            ['x0', 'y0', 'z0', 'c_offset'],
+            {'x0': kin_calib.pivot[0], 'y0': kin_calib.pivot[1], 'z0': kin_calib.pivot[2], 'c_offset': kin_calib.c_offset},
             error_func,
         )
-        logging.info("Fitted parameters: %s", opt_result)
+        self.gcode.respond_info(f"Fitted parameters: {opt_result}")
+
+        kin_calib.pivot = [opt_result['x0'], opt_result['x1'], opt_result['x2']]
+        kin_calib.c_offset = opt_result['c_offset']
+        self.kin.set_calibration(kin_calib)
+
+        self.gcode.respond_info("Kinematics parameters updated")
 
 
 def load_config(config):
