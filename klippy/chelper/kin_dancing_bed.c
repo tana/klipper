@@ -22,8 +22,6 @@ static double
 db_stepper_x_calc_position(struct stepper_kinematics *sk, struct move *m
                              , double move_time)
 {
-    return move_get_coord(m, move_time).x;
-    /*
     struct db_stepper *dbs = container_of(sk, struct db_stepper, sk);
     struct coord pos = move_get_coord(m, move_time);
     double c = pos.c - dbs->c_offset;
@@ -33,15 +31,12 @@ db_stepper_x_calc_position(struct stepper_kinematics *sk, struct move *m
     double rotated_x = cc * pos.x - sc * pos.y;
     // X stepper position does not depend on tilt
     return rotated_x + dbs->x0;
-    */
 }
 
 static double
 db_stepper_y_calc_position(struct stepper_kinematics *sk, struct move *m
                              , double move_time)
 {
-    return move_get_coord(m, move_time).y;
-    /*
     struct db_stepper *dbs = container_of(sk, struct db_stepper, sk);
     struct coord pos = move_get_coord(m, move_time);
     double c = pos.c - dbs->c_offset;
@@ -54,15 +49,12 @@ db_stepper_y_calc_position(struct stepper_kinematics *sk, struct move *m
     double ct = cos(dbs->tilt);
     double tilted_y = ct * rotated_y - st * pos.z;
     return tilted_y + dbs->y0;
-    */
 }
 
 static double
 db_stepper_z_calc_position(struct stepper_kinematics *sk, struct move *m
                              , double move_time)
 {
-    return move_get_coord(m, move_time).z;
-    /*
     struct db_stepper *dbs = container_of(sk, struct db_stepper, sk);
     struct coord pos = move_get_coord(m, move_time);
     double c = pos.c - dbs->c_offset;
@@ -75,18 +67,14 @@ db_stepper_z_calc_position(struct stepper_kinematics *sk, struct move *m
     double ct = cos(dbs->tilt);
     double tilted_z = st * rotated_y + ct * pos.z;
     return tilted_z + dbs->z0;
-    */
 }
 
 static double
 db_stepper_c_calc_position(struct stepper_kinematics *sk, struct move *m
                              , double move_time)
 {
-    return move_get_coord(m, move_time).c;
-    /*
     struct db_stepper *dbs = container_of(sk, struct db_stepper, sk);
     return move_get_coord(m, move_time).c - dbs->c_offset;
-    */
 }
 
 struct stepper_kinematics * __visible
@@ -113,21 +101,4 @@ dancing_bed_stepper_alloc(char axis, double tilt, double x0, double y0, double z
         dbs->sk.active_flags = AF_C;
     }
     return &dbs->sk;
-}
-
-int __visible dancing_bed_set_params(
-    struct stepper_kinematics *sk,
-    double tilt,
-    double x0, double y0, double z0,
-    double c_offset
-) {
-    struct db_stepper *dbs = container_of(sk, struct db_stepper, sk);
-
-    dbs->tilt = tilt;
-    dbs->x0 = x0;
-    dbs->y0 = y0;
-    dbs->z0 = z0;
-    dbs->c_offset = c_offset;
-
-    return 0;
 }

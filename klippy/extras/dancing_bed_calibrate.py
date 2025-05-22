@@ -1,6 +1,5 @@
 import math, logging
 import mathutil
-import kinematics.dancing_bed as dancing_bed
 from . import probe
 
 def _deg_to_rad(deg):
@@ -35,9 +34,6 @@ class DancingBedCalibrate:
         lift_speed = probe_obj.get_probe_params(gcmd)['lift_speed']
         kin = toolhead.get_kinematics()
         kin_calib = kin.get_calibration()
-
-        # Disable calibration params during probing
-        kin.set_calibration(dancing_bed.DancingBedCalibration(0., [0., 0., 0.], 0.))
 
         probe_results = []
         for c in self.angles:
@@ -76,9 +72,8 @@ class DancingBedCalibrate:
 
         kin_calib.pivot = [opt_result['x0'], opt_result['x1'], opt_result['x2']]
         kin_calib.c_offset = opt_result['c_offset']
-        self.kin.set_calibration(kin_calib)
 
-        self.gcode.respond_info("Kinematics parameters updated")
+        self.gcode.respond_info("Run SAVE_CONFIG to update and restart")
 
 
 def load_config(config):
